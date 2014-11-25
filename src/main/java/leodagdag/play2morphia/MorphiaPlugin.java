@@ -6,7 +6,7 @@ import org.mongodb.morphia.Morphia;
 import org.mongodb.morphia.annotations.Embedded;
 import org.mongodb.morphia.annotations.Entity;
 import org.mongodb.morphia.logging.MorphiaLoggerFactory;
-import org.mongodb.morphia.logging.slf4j.SLF4JLogrImplFactory;
+import org.mongodb.morphia.logging.slf4j.SLF4JLoggerImplFactory;
 import org.mongodb.morphia.mapping.Mapper;
 import org.mongodb.morphia.ValidationExtension;
 import com.mongodb.*;
@@ -33,7 +33,7 @@ public class MorphiaPlugin extends Plugin {
 
     private static Morphia morphia = null;
 
-    private static Mongo mongo = null;
+    private static MongoClient mongo = null;
     private static Datastore ds = null;
     private static GridFS gridfs;
 
@@ -50,7 +50,7 @@ public class MorphiaPlugin extends Plugin {
         // Register SLF4JLogrImplFactory as Logger
         // @see http://nesbot.com/2011/11/28/play-2-morphia-logging-error
         MorphiaLoggerFactory.reset();
-        MorphiaLoggerFactory.registerLogger(SLF4JLogrImplFactory.class);
+        MorphiaLoggerFactory.registerLogger(SLF4JLoggerImplFactory.class);
 
         try {
             Configuration morphiaConf = Configuration.root().getConfig(ConfigKey.PREFIX);
@@ -68,13 +68,14 @@ public class MorphiaPlugin extends Plugin {
             String password = null;
             
             if(StringUtils.isNotBlank(mongoURIstr)) {
-                MongoURI mongoURI = new MongoURI(mongoURIstr);
+                throw morphiaConf.reportError(ConfigKey.DB_MONGOURI.getKey(), "Mongo URI string not supported anymore", null);
+                /*MongoURI mongoURI = new MongoURI(mongoURIstr);
                 mongo = connect(mongoURI);
                 dbName = mongoURI.getDatabase();
                 username = mongoURI.getUsername();
                 if(mongoURI.getPassword() != null) {
                     password = new String(mongoURI.getPassword());    
-                }
+                }            */
             } else if (StringUtils.isNotBlank(seeds)) {
                 mongo = connect(seeds);
             } else {
@@ -112,7 +113,8 @@ public class MorphiaPlugin extends Plugin {
 
             // Create datastore
             if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password)) {
-                ds = morphia.createDatastore(mongo, dbName, username, password.toCharArray());
+                throw morphiaConf.reportError(ConfigKey.DB_NAME.getKey(), "username and password not supported anymore", null);
+                //ds = morphia.createDatastore(mongo, dbName, username, password.toCharArray());
             } else {
                 ds = morphia.createDatastore(mongo, dbName);
             }
@@ -211,16 +213,17 @@ public class MorphiaPlugin extends Plugin {
         return ds().getDB();
     }
 
-    private Mongo connect(MongoURI mongoURI) {
+    /*private MongoClient connect(MongoURI mongoURI) {
         try {
-            return new Mongo(mongoURI);
+            //return new Mongo(mongoURI);
+            return mongoURI.connect();
         }
         catch(UnknownHostException e) {
             throw Configuration.root().reportError(ConfigKey.DB_MONGOURI.getKey(), "Cannot connect to mongodb: unknown host", e);
         }
-    }
+    }    */
 
-    private Mongo connect(String seeds) {
+    private MongoClient connect(String seeds) {
         String[] sa = seeds.split("[;,\\s]+");
         List<ServerAddress> addrs = new ArrayList<ServerAddress>(sa.length);
         for (String s : sa) {
@@ -242,10 +245,10 @@ public class MorphiaPlugin extends Plugin {
         if (addrs.isEmpty()) {
             throw Configuration.root().reportError(ConfigKey.DB_SEEDS.getKey(), "Cannot connect to mongodb: no replica can be connected", null);
         }
-        return new Mongo(addrs);
+        return new MongoClient(addrs);
     }
 
-    private Mongo connect(String host, String port) {
+    private MongoClient connect(String host, String port) {
         String[] ha = host.split("[,\\s;]+");
         String[] pa = port.split("[,\\s;]+");
         int len = ha.length;
@@ -254,7 +257,7 @@ public class MorphiaPlugin extends Plugin {
         }
         if (1 == len) {
             try {
-                return new Mongo(ha[0], Integer.parseInt(pa[0]));
+                return new MongoClient(ha[0], Integer.parseInt(pa[0]));
             } catch (Exception e) {
                 throw Configuration.root().reportError(
                         ConfigKey.DB_HOST.getKey() + "-"
@@ -276,7 +279,7 @@ public class MorphiaPlugin extends Plugin {
                     ConfigKey.DB_HOST.getKey() + "-" + ConfigKey.DB_PORT.getKey(), "Cannot connect to mongodb: no replica can be connected",
                     null);
         }
-        return new Mongo(addrs);
+        return new MongoClient(addrs);
     }
 
 }
